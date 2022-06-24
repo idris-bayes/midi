@@ -60,9 +60,12 @@ mutual
 
     pure $ Header len fmt tracks ticks
 
-  ||| Parses a Sequence Number Meta Event.
-  sequenceNrME : Parser ME
-  sequenceNrME = ?snme
+  ||| Parses a Sequence Number Meta Event. Takes length as an argument;
+  ||| if l == 0x00 then use default values
+  ||| if l == 0x02 then parse and use supplied value
+  ||| otherwise, fail
+  sequenceNrME : Int -> Parser ME
+  sequenceNrME l = ?snme
 
   ||| Parses a text-based Meta Event
   textME : Int -> Parser ME
@@ -83,17 +86,18 @@ mutual
   metaEvent : Parser ME
   metaEvent = do
     meType <- getVal
+    meLen <- getVal
     if (meType .&. 0xF0) == 0 then textME meType else
-      case meType of
-        0x00 => sequenceNrME
-        0x20 => pure $ ChannelPrefix $ restrict 15 $ cast !getVal
-        0x2F => pure EndOfTrack
-        0x51 => pure $ SetTempo !(parseInt 3)
-        0x54 => pure $ SMPTEOffset ?parse_smpte
-        0x58 => pure $ TimeSig !(getVal) (cast $ pow 2 $ cast!(getVal)) !(getVal) !(getVal)
-        0x59 => pure $ KeySig !(getVal) $ !(getVal) > 0
-        0x7F => pure $ SequencerME (Universal 0) []  -- TODO: impl
-        e     => fail $ "Invalid Meta Event type: " ++ show e
+      case (meType, meLen) of
+        (0x00, l)    => sequenceNrME l -- TODO: inaccessible!
+        (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !getVal
+        (0x2F, 0x00) => pure EndOfTrack
+        (0x51, 0x03) => pure $ SetTempo !(parseInt 3)
+        (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
+        (0x58, 0x04) => pure $ TimeSig !(getVal) (cast $ pow 2 $ cast!(getVal)) !(getVal) !(getVal)
+        (0x59, 0x02) => pure $ KeySig !(getVal) $ !(getVal) > 0
+        (0x7F, l)    => pure $ SequencerME (Universal 0) []  -- TODO: impl
+        (t,    l)    => fail $ "Invalid Meta Event type: " ++ show t ++ " with length " ++ show l
 
   ||| Parses an event
   event : Parser Event
