@@ -244,21 +244,20 @@ mkKeySig a m = index idx keySigAccs  -- TODO: handle minor scales
 
 public export
 Show ME where
-  show (SequenceNr i)       = "Sequence Number: " ++ show i
-  show (TextEvent str)      = "Text Event: " ++ str
-  show (Copyright str)      = "Copyright: " ++ str
-  show (SequenceName str)   = "Sequence/Track name: " ++ str
-  show (InstrumentName str) = "Instrument name: " ++ str
-  show (Lyric str)          = "Lyric: " ++ str
-  show (Marker str)         = "Marker: " ++ str
-  show (CuePoint str)       = "Cue Point: " ++ str
-  show (ChannelPrefix x)    = "Channel Prefix: " ++ show x
+  show (SequenceNr i)       = "Sequence Number: (\{show i}) "
+  show (TextEvent str)      = "Text Event: \{str}"
+  show (Copyright str)      = "Copyright: \{str}"
+  show (SequenceName str)   = "Sequence/Track name: \{str}"
+  show (InstrumentName str) = "Instrument name: \{str}"
+  show (Lyric str)          = "Lyric: \{str}"
+  show (Marker str)         = "Marker: \{str}"
+  show (CuePoint str)       = "Cue Point: \{str}"
+  show (ChannelPrefix x)    = "Channel Prefix: \{show x}"
   show EndOfTrack           = "End of track."
-  show (SetTempo i)         = "Set Tempo: " ++ show i
+  show (SetTempo i)         = "Set Tempo: \{show i}"
   show (SMPTEOffset x)      = "SMPTE Offset: " ++ ?x_unimpl
-  show (TimeSig n d c q)    = "Time Signature: " ++ show n ++ "/" ++ show d
-                           ++ ", " ++ show c ++ " clks/metronome tick, "
-                           ++ show q ++ " 32nd notes/crotchet"
+  show (TimeSig n d c q)    = "Time Signature: \{show n}/\{show d},"
+                           ++ "\{show c} clks/metronome tick, \{show q} 32nd notes/crotchet"
   show (KeySig a m)         = "Key Signature: " ++ mkKeySig a m ++ if m then " Minor"
                                                                   else " Major"
   show (SequencerME x is)   = "Sequencer Meta Event: cannot show"  -- TODO: byte list?
@@ -266,40 +265,38 @@ Show ME where
 public export
 Show ChModeMsg where
   show AllSoundOff        = "All sound off"
-  show (ResetAllCtrlrs x) = "Reset all controllers"
+  show (ResetAllCtrlrs x) = "Reset all controllers (value: \{show x})"
   show (LocalCtrl b)      = (if b then "En" else "Dis") ++ "abled local control"
   show AllNotesOff        = "All notes off"
   show OmniOff            = "Disable Omni mode"
   show OmniOn             = "Enable Omni mode"
-  show (MonoOn c)         = "Enabling Mono mode for " ++ show c ++ " channels"
+  show (MonoOn c)         = "Enabling Mono mode for \{show c} channels"
   show PolyOn             = "Enabling Poly mode"
 
 public export
 Show ChVoice where
-  show (NoteOff n v)    = "Note Off: "    ++ show n ++ ", " ++ show v
-  show (NoteOn  n v)    = "Note On: "     ++ show n ++ ", " ++ show v
-  show (Aftertouch n v) = "Aftertouch: "  ++ show n ++ ", " ++ show v
-  show (CtrlChange c)   = "Control Change: Controller " ++ show c
-  show (ChMode x)       = "Channel Mode: " ++ show x
-  show (ProgChange p)   = "Program change to " ++ show p
-  show (ChPressure x)   = "Channel Pressure: " ++ show x
-  show (PitchBend b)    = "Pitch Bend: " ++ show b
+  show (NoteOff n v)    = "Note Off: \{show n}, \{show v}"
+  show (NoteOn n v)     = "Note On: \{show n}, \{show v}"
+  show (Aftertouch n v) = "Aftertouch: \{show n}, \{show v}"
+  show (CtrlChange c)   = "Control Change: Controller \{show c}"
+  show (ChMode x)       = "Channel Mode: \{show x}"
+  show (ProgChange p)   = "Program change to \{show p}"
+  show (ChPressure x)   = "Channel Pressure: \{show x}"
+  show (PitchBend b)    = "Pitch Bend: \{show b}"
 
 public export
 Show Event where
-  show (MetaEvt  e) = "MetaEvt: " ++ show e
-  show (MidiEvt (MkChMsg c m)) = "MidiEvt (channel " ++ show c ++ "): " ++ show m
-  show (SysExEvt e) = "SysExEvt: cannot show"  -- TODO: byte list?
+  show (MetaEvt  e)            = "MetaEvt: \{show e}"
+  show (MidiEvt (MkChMsg c m)) = "MidiEvt (channel \{show c}): \{show m}"
+  show (SysExEvt e)            = "SysExEvt: cannot show"  -- TODO: byte list?
 
 public export
 Show TrkEvent where
-  show (TE dt e) = "\n" ++ show dt ++ ": " ++ show e
+  show (TE dt e) = "\n\{show dt}: \{show e}"
 
 public export
 Show Chunk where
-  show (Header len fmt tracks ticks) = "MThd (" ++ show len ++ " bytes): "
-                                    ++ "Format " ++ show (finToNat fmt) ++ ", "
-                                    ++ show tracks ++ " track(s), "
-                                    ++ show ticks ++ " ticks per quarter note"
-  show (Track len es) = "MTrk (" ++ show len ++ " bytes): "
-                     ++ show es
+  show (Header len fmt tracks ticks) =
+     "MThd (\{show len} bytes): Format \{show (finToNat fmt)}, "
+     ++ "\{show tracks} track(s), \{show ticks} ticks per quarter note"
+  show (Track len es) = "MTrk (\{show len} bytes): \{show es}"

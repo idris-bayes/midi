@@ -81,7 +81,7 @@ mutual
   ||| Parses a text-based Meta Event
   textME : Int -> Parser ME
   textME t = do
-    len <- parseInt 4
+    len <- parseVLE
     str <- getString $ cast len
     case t of
       0x01 => pure $ TextEvent str
@@ -115,6 +115,7 @@ mutual
     eType <- getVal
     case eType of
       0xFF => pure $ MetaEvt !metaEvent
+      _    => pure $ MetaEvt EndOfTrack
       e    => fail "unexpected event type: \{show e}"
 
   ||| Parses an event at a timecode in a track.
@@ -130,14 +131,13 @@ mutual
     skip $ string "MTrk"
     len <- parseInt 4
     es <- some trackEvent
-    pure $ Track len $ singleton $ TE 0 $ MetaEvt EndOfTrack
+    pure $ Track len es
 
   ||| Parses a full MIDI file.
   file : Parser MidiFile
   file = do
     hdr <- header
     trks <- some track
-    skip $ eos
     pure $ hdr :: trks
 
 
