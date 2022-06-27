@@ -12,7 +12,7 @@ import Sound.Midi.Types
 import Data.Buffer
 import System.File
 
-%default total
+--%default total
 
 MidiFile : Type
 MidiFile = List Chunk
@@ -38,7 +38,6 @@ parseInt n = (foldl (\a, e => 256 * a + e) 0) <$> take n
 
 --- MIDI-specific parsers
 ||| Parses a variable-length encoded value.
-covering
 parseVLE : Parser Int
 parseVLE = do
   bs <- many $ satisfy (> 0x7F)
@@ -82,7 +81,7 @@ mutual
   ||| Parses a text-based Meta Event
   textME : Int -> Parser ME
   textME t = do
-    len <- parseInt 4
+    len <- parseVLE
     str <- getString $ cast len
     case t of
       0x01 => pure $ TextEvent str
@@ -119,7 +118,6 @@ mutual
       e    => fail "unexpected event type: \{show e}"
 
   ||| Parses an event at a timecode in a track.
-  covering
   trackEvent : Parser TrkEvent
   trackEvent = do
     dt <- parseVLE
@@ -127,7 +125,6 @@ mutual
     pure $ TE dt e
 
   ||| Parses a track chunk.
-  covering
   track : Parser Chunk
   track = do
     skip $ string "MTrk"
@@ -136,7 +133,6 @@ mutual
     pure $ Track len $ singleton $ TE 0 $ MetaEvt EndOfTrack
 
   ||| Parses a full MIDI file.
-  covering
   file : Parser MidiFile
   file = do
     hdr <- header
@@ -148,7 +144,6 @@ mutual
 testHeader = "MThd\x0\x0\x0\x6\x0\x1\x0\x1\x1\xe0MTrk\x0\x0\x0\x6e\x0\xff\x03\x06\x50\x69"
 
 
-covering
 parseFile : String -> IO ()
 parseFile filename = do
   bufE <- createBufferFromFile filename
