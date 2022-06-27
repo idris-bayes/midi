@@ -1,4 +1,4 @@
-||| A simple parser combinator library for String. Inspired by attoparsec zepto.
+||| A simple parser combinator library for (Vect n Int). Inspired by attoparsec zepto.
 module Data.Binary.Parser
 import public Control.Monad.Identity
 import Control.Monad.Trans
@@ -18,20 +18,20 @@ import Data.Vect
 public export
 record State where
     constructor S
-    input : List Int
+    maxLen : Nat
+    input : Vect maxLen Int
     pos : Nat
-    maxPos : Nat
 
 Show State where
-    show s = "(" ++ show s.input ++ ", " ++ show s.pos ++ ", " ++ show s.maxPos ++ ")"
+    show s = "(" ++ show s.input ++ ", " ++ show s.pos ++ ")"
 
 ||| Result of applying a parser
 public export
 data Result a = Fail Nat String | OK a State
 
 Functor Result where
-  map f (Fail i err) = Fail i err
-  map f (OK r s)     = OK (f r) s
+    map f (Fail i err) = Fail i err
+    map f (OK r s)     = OK (f r) s
 
 public export
 record ParseT (m : Type -> Type) (a : Type) where
@@ -74,17 +74,17 @@ MonadTrans ParseT where
 ||| Returns a tuple of the result and final position on success.
 ||| Returns an error message on failure.
 export
-parseT : Functor m => ParseT m a -> List Int -> m (Either String (a, Nat))
+parseT : {n : Nat} -> Functor m => ParseT m a -> Vect n Int -> m (Either String (a, Nat))
 parseT p is = map (\case
                        OK r s     => Right (r, s.pos)
-                       Fail i err => Left $ "Parse failed at position \{show i}: \{err}")
-                   (p.runParser $ S is 0 $ cast $ length is)
+                       Fail i err => Left $ "Parse failed at position [\{show i}/\{show $ length is}]: \{err}")
+                   (p.runParser $ S n is 0)
 
 ||| Run a parser in a pure function
 ||| Returns a tuple of the result and final position on success.
 ||| Returns an error message on failure.
 export
-parse : Parser a -> List Int -> Either String (a, Nat)
+parse : {n : Nat} -> Parser a -> Vect n Int -> Either String (a, Nat)
 parse p is = runIdentity $ parseT p is
 
 ||| Combinator that replaces the error message on failure.
@@ -97,6 +97,16 @@ export
                             (p.runParser s)
 
 infixl 0 <?>
+
+||| Combinator that combines the error message on failure with another.
+||| This allows combinators to output relevant errors similar to a stack trace.
+export
+(<?+>) : Functor m => ParseT m a -> String -> ParseT m a
+(<?+>) p m2 = P $ \s => map (\case
+                                OK r s'   => OK r s'
+                                Fail i m1 => Fail i $ m2 ++ ":\n\t" ++ m1)
+                            (p.runParser s)
+infixl 0 <?+>
 
 ||| Discards the result of a parser
 export
@@ -145,12 +155,12 @@ fail x = P $ \s => pure $ Fail s.pos x
 ||| Succeeds if the next value satisfies the predicate `f`
 export
 satisfy : Applicative m => (Int -> Bool) -> ParseT m Int
-satisfy f = P $ \s => pure $ if s.pos < s.maxPos
-                                  then let i = assert_total $ head $ drop (cast s.pos) s.input in
-                                       if f i
-                                           then OK i (S s.input (s.pos + 1) s.maxPos)
-                                           else Fail s.pos "could not satisfy predicate"
-                                  else Fail s.pos "could not satisfy predicate"
+satisfy f = P $ \s => pure $ case natToFin s.pos s.maxLen of
+                                 Just p => let i = index p s.input in
+                                               if f i
+                                                   then OK i (S s.maxLen s.input $ s.pos + 1)
+                                                   else Fail s.pos "could not satisfy predicate"
+                                 Nothing => Fail s.pos "could not satisfy predicate"
 
 ||| `satisfy`, but accepts a Char instead of an Int value.
 satisfyChar : Applicative m => (Char -> Bool) -> ParseT m Char
@@ -159,27 +169,28 @@ satisfyChar f = map cast $ satisfy $ f . cast
 ||| Match a single value
 export
 match : Applicative m => Int -> ParseT m Int
-match v = P $ \s => pure $ let x = head $ drop (cast s.pos) s.input in if x == v
-              then OK v (S s.input (s.pos + 1) s.maxPos)
-              else Fail s.pos ("expected \{show v}, got \{show x}")
+match v = P $ \s => pure $ case natToFin s.pos s.maxLen of
+    Nothing => Fail s.pos "somehow read past maxLen! Report this to the library maintainers!"  -- TODO: handle better
+    Just p  => let x = index p s.input
+               in if x == v
+                      then OK v (S s.maxLen s.input (s.pos + 1))
+                      else Fail s.pos ("expected \{show v}, got \{show x}")
 
 ||| Succeeds if the list of values `is` follows.
 export
 matchList : Applicative m => List Int -> ParseT m (List Int)
 matchList is = P $ \s => pure $ let len = length is in
-                              if s.pos+len <= s.maxPos
-                                  then let subl = sublist s.pos len s.input in
-                                       if subl == is
-                                         then OK is (S s.input (s.pos + len) s.maxPos)
-                                         else Fail s.pos ("expected \{show is}, got \{show subl}")
+                              if s.pos+len <= s.maxLen
+                                  then let subv = drop s.pos is in
+                                       if subv `isPrefixOf` is
+                                         then OK is (S s.maxLen s.input (s.pos + len))
+                                         else Fail s.pos ("expected \{show is}, got \{show subv}")
                                   else Fail s.pos ("reached end of input while searching for \{show is}")
-    where sublist : (s : Nat) -> (e : Nat) -> List a -> List a
-          sublist s e = take (S $ minus e s) . drop (cast s)
 
 ||| Succeeds if the end of the input is reached.
 export
 eos : Applicative m => ParseT m ()
-eos = P $ \s => pure $ if s.pos == s.maxPos
+eos = P $ \s => pure $ if s.pos == s.maxLen
                            then OK () s
                            else Fail s.pos "expected the end of the input"
 
@@ -210,6 +221,7 @@ export
 letter : Applicative m => ParseT m Char
 letter = satisfyChar isAlpha <?> "expected letter"
 
+-- TODO: may be possible to make these total since we use vectors?
 mutual
     ||| Succeeds if `p` succeeds, will continue to match `p` until it fails
     ||| and accumulate the results in a list
