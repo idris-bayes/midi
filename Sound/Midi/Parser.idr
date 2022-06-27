@@ -81,7 +81,7 @@ mutual
   ||| Parses a text-based Meta Event
   textME : Int -> Parser ME
   textME t = do
-    len <- parseVLE
+    len <- parseInt 4
     str <- getString $ cast len
     case t of
       0x01 => pure $ TextEvent str
