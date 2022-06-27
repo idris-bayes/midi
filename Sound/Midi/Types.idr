@@ -300,6 +300,6 @@ Show Chunk where
   show (Header len fmt tracks ticks) = "MThd (" ++ show len ++ " bytes): "
                                     ++ "Format " ++ show (finToNat fmt) ++ ", "
                                     ++ show tracks ++ " track(s), "
-                                    ++ show ticks ++ " ticks per quarter note. "
+                                    ++ show ticks ++ " ticks per quarter note"
   show (Track len es) = "MTrk (" ++ show len ++ " bytes): "
                      ++ show es
