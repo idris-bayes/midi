@@ -111,13 +111,17 @@ data Manufacturer = ||| Universal Exclusive Message (UEM) code. This is not
                     ||| manufacturer.
                     Specific (Vect 3 Value)
 
+||| SysEx message
+public export
+data SystemExclusive = SE Manufacturer (List Value)
+
 ||| System Common messages.
 public export
 data SysComm = ||| System Exclusive messages (SysEx). Due to being manufacturer
                ||| specific, no direct interface is provided. Instead, a list of
                ||| values may be sent to the device. Do not send the leading or
                ||| trailing bytes (0xf0 and 0xf7 respectively).
-               SysEx Manufacturer (List Value)
+               SysEx SystemExclusive
              | ||| Time Code Quarter Frame. Sends one of 8 message types, with a
                ||| 4 bit value.
                TimeCodeQF TimeCodeMsg TimeCodeVal
@@ -146,9 +150,6 @@ data SysRT = ||| Timing Clock. Sent 24 times per quarter note (crotchet) when
            | ||| This messages is optional. It is intended to be used when
              ActiveSensing
            | Reset
-
-public export
-data SysMsg = Gdsgf
 
 --------------------
 -- File Type defs --
@@ -217,7 +218,7 @@ data Event = ||| "Meta" event. Describes changes to the MIDI/track environment.
            | ||| Channel message. Encodes actual notes
              MidiEvt ChMsg
            | ||| SysEx message.
-             SysExEvt SysMsg
+             SysExEvt SystemExclusive
 
 ||| A track event represents an action occuring at a specific time in a MIDI file.
 public export

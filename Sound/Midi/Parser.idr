@@ -124,7 +124,7 @@ mutual
         (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
         (0x58, 0x04) => pure $ TimeSig !(getVal) (cast $ pow 2 $ cast!(getVal)) !(getVal) !(getVal)
         (0x59, 0x02) => pure $ KeySig !(getVal) $ !(getVal) > 0
-        (0x7F, l)     => pure $ SequencerME (Universal 0) []  -- TODO: impl
+        (0x7F, l)    => pure $ SequencerME (Universal 0) []  -- TODO: impl
         (t,    l)    => fail $ "Invalid Meta Event type: " ++ show t ++ " with length " ++ show l
 
   ||| Parses an event
@@ -156,7 +156,6 @@ mutual
   file : Parser MidiFile
   file = do
     hdr <- header
-    --trks <- some track
     trks <- some track
     pure $ hdr :: trks
 
