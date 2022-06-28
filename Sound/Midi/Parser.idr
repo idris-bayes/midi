@@ -1,4 +1,5 @@
 ||| Parser for MIDI 1.1 files.
+||| Based on info from https://www.midi.org/specifications/file-format-specifications/standard-midi-files
 module Sound.Midi.Parser
 
 import Data.Bits
