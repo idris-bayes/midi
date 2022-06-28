@@ -30,8 +30,10 @@ take n = ntimes n getVal
 
 ||| Get `n` characters from the input and parses as a string.
 getString : (n : Nat) -> Parser String
-getString n = (pure $ fastPack $ map cast $ toList !(take n))
+getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
           <?> "couldn't read as string"
+  where init : String -> String
+        init s = strSubstr 0 (cast $ minus (length s) 1) s
 
 ||| Parses a little-endian n-bit byte.
 parseInt : (n : Nat) -> Parser Int
@@ -41,9 +43,9 @@ parseInt n = (foldl (\a, e => 256 * a + e) 0) <$> take n
 ||| Parses a variable-length encoded value.
 parseVLE : Parser Int
 parseVLE = do
-  bs <- many $ satisfy (> 0x7F)
-  let bsum = foldl (\a, c => 128 * a + (the Int $ cast c) - 0x80) 0 bs
-  pure $ bsum * 128 + !(getVal <?> "couldn't parse VLE literal")
+  bs <- takeWhile (> 0x7F)
+  let bsum = foldl (\a, c => 128 * a + c - 0x80) 0 bs
+  pure $ bsum * 128 + !(getVal <?> "couldn't parse VLE")
 
 ||| Parses an SMPTE time code.
 parseSMPTE : Parser SMPTE
@@ -72,6 +74,22 @@ mutual
         ticks  <- parseInt 2
         pure $ Header len fmt tracks ticks
 
+  ||| Parses a manufacturer ID.
+  manufacturer : Parser Manufacturer
+  manufacturer = do
+    ?manu
+
+  ||| Parses a System Exclusive message.
+  sysEx : Parser SystemExclusive
+  sysEx = do
+    --m <- manufacturer
+    len <- parseVLE
+    let msg = toList $ the (Vect _ Value) $ map cast !(take $ cast len)
+    end <- getVal
+    if end /= 0xF7
+       then fail "expected 0xF7 (end of SysEx message) but got \{show end} after \{show len} bytes"
+       else pure $ SE (Universal 0) msg  -- TODO: provide correct manufacturer
+
   ||| Parses a Sequence Number Meta Event. Takes length as an argument;
   ||| if l == 0x00 then use default values
   ||| if l == 0x02 then parse and use supplied value
@@ -80,14 +98,13 @@ mutual
   sequenceNrME l = ?snme
 
   ||| Parses a text-based Meta Event
-  textME : Int -> Parser ME
-  textME t = do
-    len <- parseVLE
+  textME : Int -> Int -> Parser ME
+  textME t len = do
     str <- getString $ cast len
     case t of
       0x01 => pure $ TextEvent str
       0x02 => pure $ Copyright str
-      0x03 => pure $ SequenceName str
+      0x03 => pure $ SequenceName $ str
       0x04 => pure $ InstrumentName str
       0x05 => pure $ Lyric str
       0x06 => pure $ Marker str
@@ -98,8 +115,8 @@ mutual
   metaEvent : Parser ME
   metaEvent = do
     meType <- getVal
-    meLen <- getVal
-    if (meType .&. 0xF0) == 0 then textME meType else
+    meLen  <- getVal
+    if (meType .&. 0xF0) == 0 then textME meType meLen else
       case (meType, meLen) of
         (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !getVal
         (0x2F, 0x00) => pure EndOfTrack
@@ -107,7 +124,7 @@ mutual
         (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
         (0x58, 0x04) => pure $ TimeSig !(getVal) (cast $ pow 2 $ cast!(getVal)) !(getVal) !(getVal)
         (0x59, 0x02) => pure $ KeySig !(getVal) $ !(getVal) > 0
-        (0x7F, l)    => pure $ SequencerME (Universal 0) []  -- TODO: impl
+        (0x7F, l)     => pure $ SequencerME (Universal 0) []  -- TODO: impl
         (t,    l)    => fail $ "Invalid Meta Event type: " ++ show t ++ " with length " ++ show l
 
   ||| Parses an event
@@ -115,14 +132,14 @@ mutual
   event = do
     eType <- getVal
     case eType of
+      0xF0 => pure $ SysExEvt !sysEx
       0xFF => pure $ MetaEvt !metaEvent
-      _    => pure $ MetaEvt EndOfTrack
       e    => fail "unexpected event type: \{show e}"
 
   ||| Parses an event at a timecode in a track.
   trackEvent : Parser TrkEvent
   trackEvent = do
-    dt <- parseVLE
+    dt <- parseVLE <?> "couldn't parse timecode"
     e <- event <?+> "failed reading event at timecode \{show dt}"
     pure $ TE dt e
 
@@ -131,18 +148,17 @@ mutual
   track = do
     skip $ string "MTrk"
     len <- parseInt 4
-    es <- some trackEvent
+    es <- some trackEvent  -- todo: precalculate number of events to take?
+    e <- trackEvent
     pure $ Track len es
 
   ||| Parses a full MIDI file.
   file : Parser MidiFile
   file = do
     hdr <- header
+    --trks <- some track
     trks <- some track
     pure $ hdr :: trks
-
-
-testHeader = "MThd\x0\x0\x0\x6\x0\x1\x0\x1\x1\xe0MTrk\x0\x0\x0\x6e\x0\xff\x03\x06\x50\x69"
 
 
 parseFile : String -> IO ()
