@@ -162,19 +162,21 @@ satisfy f = P $ \s => pure $ case natToFin s.pos s.maxLen of
                                                    else Fail s.pos "could not satisfy predicate"
                                  Nothing => Fail s.pos "could not satisfy predicate"
 
+||| Match a single input token
+single : (Applicative m, Eq i, Show i) => i -> ParseT i m i
+single x = satisfy (== x) <?> "expected \{show x}"
+
+||| Parse and return a single input token.
+anySingle : Applicative m => ParseT i m i
+anySingle = satisfy (const True) <?> "reached end of string"
+
+||| Parse and return a single input token, as long as it isn't x.
+anySingleBut : (Applicative m, Eq i, Show i) => i -> ParseT i m i
+anySingleBut x = satisfy (/= x) <?> "didn't expect \{show x}"
+
 ||| `satisfy`, but accepts a Char instead of an Int value.
 satisfyChar : (Applicative m, Cast i Char) => (Char -> Bool) -> ParseT i m Char
 satisfyChar f = map cast $ satisfy $ f . cast
-
-||| Match a single value
-export
-match : Applicative m => i -> ParseT i m i
-match v = P $ \s => pure $ case natToFin s.pos s.maxLen of
-    Nothing => Fail s.pos "somehow read past maxLen! Report this to the library maintainers!"  -- TODO: handle better
-    Just p  => let x = index p s.input
-               in if x == v
-                      then OK v (S s.maxLen s.input (s.pos + 1))
-                      else Fail s.pos ("expected \{show v}, got \{show x}")
 
 ||| Succeeds if the list of values `is` follows.
 export
@@ -189,8 +191,8 @@ matchList is = P $ \s => pure $ let len = length is in
 
 ||| Succeeds if the end of the input is reached.
 export
-eos : Applicative m => ParseT i m ()
-eos = P $ \s => pure $ if s.pos == s.maxLen
+eoi : Applicative m => ParseT i m ()
+eoi = P $ \s => pure $ if s.pos == s.maxLen
                            then OK () s
                            else Fail s.pos "expected the end of the input"
 
@@ -277,7 +279,7 @@ takeWhile1 f = some (satisfy f)
 ||| Fails if the `stop` pattern cannot be found.
 export
 covering
-takeUntil : (Monad m, Eq i, Show (List i)) => (stop : List i) -> ParseT i m (List i)
+takeUntil : (Monad m, Eq i, Show i) => (stop : List i) -> ParseT i m (List i)
 takeUntil stop = do
     case stop of
       []         => pure []
@@ -286,7 +288,7 @@ takeUntil stop = do
     takeUntil' : Monad m' => (s : i) -> (top : List i) -> (acc : SnocList (List i)) -> ParseT i m' (List i)
     takeUntil' s top acc = do
         init <- takeWhile (/= s)
-        skip $ match s <?> "end of string reached - \{show stop} not found"
+        skip $ single s <?> "end of string reached - \{show stop} not found"
         case !(succeeds $ matchList top) of
              False => takeUntil' s top $ acc :< (init `snoc` s)
              True  => pure $ concat $ acc :< init
