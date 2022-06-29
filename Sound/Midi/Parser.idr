@@ -12,12 +12,12 @@ import Sound.Midi.Types
 
 import Data.Buffer
 import System.File
+import Control.Monad.State
 
---%default total
-
-||| We parse MIDI files as vectors of integers
+||| We parse MIDI files as vectors of integers. State is needed for running
+||| status codes.
 Parser : Type -> Type
-Parser = Parser.Parser Int
+Parser = Parser.ParseT Int (State Int)
 
 MidiFile : Type
 MidiFile = List Chunk
@@ -127,25 +127,37 @@ mutual
     c <- anySingle
     v <- anySingle
     case c of
-      _ => fail ""
+      _ => fail "unimplemented chMode"
 
   ||| Parses a generic control change message.
   ctrlChange : Parser ChVoice
   ctrlChange = pure $ CtrlChange (cast !(anySingle)) (cast !(anySingle))
 
+  chVoice : Int -> Parser ChVoice
+  chVoice e = do
+    case e .&. 0xF0 of
+      0x80 => pure $ NoteOff    !(anySingle) !(anySingle)
+      0x90 => pure $ NoteOn     !(anySingle) !(anySingle)
+      0xA0 => pure $ Aftertouch !(anySingle) !(anySingle)
+      0xB0 => pure $ !(chMode <|> ctrlChange)
+      0xC0 => pure $ ProgChange !(anySingle)
+      0xD0 => pure $ ChPressure !(anySingle)
+      0xE0 => pure $ PitchBend  !(anySingle)
+      x    => fail "invalid channel voice command \{show e}"
+
   ||| Parses general MIDI events (such as notes).
   midiEvent : Int -> Parser ChMsg
-  midiEvent evt = do
-    let ch = restrict 15 $ cast $ evt .&. 0x0F
-    case evt .&. 0xF0 of  -- TODO: bad
-      0x80 => pure $ MkChMsg ch $ NoteOff    !(anySingle) !(anySingle)
-      0x90 => pure $ MkChMsg ch $ NoteOn     !(anySingle) !(anySingle)
-      0xA0 => pure $ MkChMsg ch $ Aftertouch !(anySingle) !(anySingle)
-      0xB0 => pure $ MkChMsg ch $ !(chMode <|> ctrlChange)
-      0xC0 => pure $ MkChMsg ch $ ProgChange !(anySingle)
-      0xD0 => pure $ MkChMsg ch $ ChPressure !(anySingle)
-      0xE0 => pure $ MkChMsg ch $ PitchBend  !(anySingle)
-      _ => fail "invalid MIDI event code \{show evt}"
+  midiEvent e = do
+    rs <- lift get
+
+    v <- case !(optional $ chVoice e) of
+      Just v  => lift (put e) >> pure v
+      Nothing => chVoice rs
+
+    e' <- lift get
+
+    let ch = restrict 15 $ cast $ e' .&. 0x0F  -- TODO: calculate from v|rs properly
+    pure $ MkChMsg ch v
 
   ||| Parses an event
   event : Parser Event
@@ -168,8 +180,7 @@ mutual
   track = do
     skip $ string "MTrk"
     len <- parseInt 4
-    es <- some trackEvent  -- todo: precalculate number of events to take?
-    e <- trackEvent
+    es <- some trackEvent  -- TODO: precalculate number of events to take?
     pure $ Track len es
 
   ||| Parses a full MIDI file.
@@ -192,7 +203,7 @@ parseFile filename = do
       printLn l
 
       let v = fromList l
-      case (parse file v) of
+      case snd $ runIdentity $ runStateT 0 $ parseT file v of
         Left e => putStrLn e
         Right (v,l) => --print "Read " ++ show l ++ printLn " bytes of input:" ++ printLn v
           printLn v
