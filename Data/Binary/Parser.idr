@@ -163,18 +163,22 @@ satisfy f = P $ \s => pure $ case natToFin s.pos s.maxLen of
                                  Nothing => Fail s.pos "could not satisfy predicate"
 
 ||| Match a single input token
+export
 single : (Applicative m, Eq i, Show i) => i -> ParseT i m i
 single x = satisfy (== x) <?> "expected \{show x}"
 
 ||| Parse and return a single input token.
+export
 anySingle : Applicative m => ParseT i m i
 anySingle = satisfy (const True) <?> "reached end of string"
 
 ||| Parse and return a single input token, as long as it isn't x.
+export
 anySingleBut : (Applicative m, Eq i, Show i) => i -> ParseT i m i
 anySingleBut x = satisfy (/= x) <?> "didn't expect \{show x}"
 
 ||| `satisfy`, but accepts a Char instead of an Int value.
+export
 satisfyChar : (Applicative m, Cast i Char) => (Char -> Bool) -> ParseT i m Char
 satisfyChar f = map cast $ satisfy $ f . cast
 
@@ -378,3 +382,8 @@ export
 ntimes : Monad m => (n : Nat) -> ParseT i m a -> ParseT i m (Vect n a)
 ntimes    Z  p = pure Vect.Nil
 ntimes (S n) p = [| p :: (ntimes n p) |]
+
+||| Take `n` values from the input, returning a vector.
+export
+take : Monad m => (n : Nat) -> ParseT i m (Vect n i)
+take n = ntimes n anySingle <?> "unexpected end of string"
