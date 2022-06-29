@@ -16,26 +16,26 @@ Channel = Fin 16
 ||| Specifies a note value.
 public export
 Note : Type
-Note = Int8  -- 0 to 127
+Note = Int  -- 0 to 127
 
 ||| Specifies a general value in [0, 127].
 public export
 Value : Type
-Value = Int8  -- 0 to 127
+Value = Int  -- 0 to 127
 ||| Used when values in [0, 16384] are needed.
 public export
 DValue : Type
-DValue = Int16  -- 0 to 16384
+DValue = Int  -- 0 to 16384
 
 ||| Specifies a controller number for control changes.
 public export
 Controller : Type
-Controller = Int8  -- 0 to 119
+Controller = Int  -- 0 to 119
 
 ||| Specifies a program/patch number.
 public export
 Program : Type
-Program = Int8  -- 0 to 127?
+Program = Int  -- 0 to 127?
 
 ||| Specifies a Time Code message type.
 public export
@@ -83,7 +83,7 @@ data ChVoice = NoteOff Note Value
              | ||| Control Change (CC). Sent when a controller changes (e.g. mod
                ||| wheel, foot pedal, etc.). Value may range up to 119, values
                ||| 120-127 are handled in ChMode.
-               CtrlChange Controller
+               CtrlChange Controller Value
              | ||| Reserved CC values.
                ChMode ChModeMsg
              | ||| Program Change. This message is sent when the patch number
@@ -279,7 +279,7 @@ Show ChVoice where
   show (NoteOff n v)    = "Note Off: \{show n}, \{show v}"
   show (NoteOn n v)     = "Note On: \{show n}, \{show v}"
   show (Aftertouch n v) = "Aftertouch: \{show n}, \{show v}"
-  show (CtrlChange c)   = "Control Change: Controller \{show c}"
+  show (CtrlChange c v) = "Control Change: Controller \{show c}, \{show v}"
   show (ChMode x)       = "Channel Mode: \{show x}"
   show (ProgChange p)   = "Program change to \{show p}"
   show (ChPressure x)   = "Channel Pressure: \{show x}"
