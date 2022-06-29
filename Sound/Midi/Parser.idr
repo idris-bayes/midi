@@ -22,16 +22,6 @@ Parser = Parser.Parser Int
 MidiFile : Type
 MidiFile = List Chunk
 
-||| Gets a single value from the input.
-getVal : Parser Int
-getVal = (map cast $ satisfy $ const True)
-     <?> "unexpected end of string in getVal"
-
-||| Gets the next `n` values from the input as a vector.
-take : (n : Nat) -> Parser (Vect n Int)
-take n = ntimes n getVal
-     <?> "unexpected end of string while trying to take \{show n} bytes"
-
 ||| Get `n` characters from the input and parses as a string.
 getString : (n : Nat) -> Parser String
 getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
@@ -49,7 +39,7 @@ parseVLE : Parser Int
 parseVLE = do
   bs <- takeWhile (> 0x7F)
   let bsum = foldl (\a, c => 128 * a + c - 0x80) 0 bs
-  pure $ bsum * 128 + !(getVal <?> "couldn't parse VLE")
+  pure $ bsum * 128 + !(anySingle <?> "couldn't parse VLE")
 
 ||| Parses an SMPTE time code.
 parseSMPTE : Parser SMPTE
@@ -89,7 +79,7 @@ mutual
     --m <- manufacturer
     len <- parseVLE
     let msg = toList $ the (Vect _ Value) $ map cast !(take $ cast len)
-    end <- getVal
+    end <- anySingle
     if end /= 0xF7
        then fail "expected 0xF7 (end of SysEx message) but got \{show end} after \{show len} bytes"
        else pure $ SE (Universal 0) msg  -- TODO: provide correct manufacturer
@@ -118,27 +108,53 @@ mutual
   ||| Parses a MIDI Meta Event.
   metaEvent : Parser ME
   metaEvent = do
-    meType <- getVal
-    meLen  <- getVal
+    meType <- anySingle
+    meLen  <- anySingle
     if (meType .&. 0xF0) == 0 then textME meType meLen else
       case (meType, meLen) of
-        (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !getVal
+        (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !anySingle
         (0x2F, 0x00) => pure EndOfTrack
         (0x51, 0x03) => pure $ SetTempo !(parseInt 3)
         (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
-        (0x58, 0x04) => pure $ TimeSig !(getVal) (cast $ pow 2 $ cast!(getVal)) !(getVal) !(getVal)
-        (0x59, 0x02) => pure $ KeySig !(getVal) $ !(getVal) > 0
+        (0x58, 0x04) => pure $ TimeSig !(anySingle) (cast $ pow 2 $ cast!(anySingle)) !(anySingle) !(anySingle)
+        (0x59, 0x02) => pure $ KeySig !(anySingle) $ !(anySingle) > 0
         (0x7F, l)    => pure $ SequencerME (Universal 0) []  -- TODO: impl
         (t,    l)    => fail $ "Invalid Meta Event type: " ++ show t ++ " with length " ++ show l
+
+  ||| Parses a MIDI reserved control change message.
+  chMode : Parser ChVoice
+  chMode = do
+    c <- anySingle
+    v <- anySingle
+    case c of
+      _ => fail ""
+
+  ||| Parses a generic control change message.
+  ctrlChange : Parser ChVoice
+  ctrlChange = pure $ CtrlChange (cast !(anySingle)) (cast !(anySingle))
+
+  ||| Parses general MIDI events (such as notes).
+  midiEvent : Int -> Parser ChMsg
+  midiEvent evt = do
+    let ch = restrict 15 $ cast $ evt .&. 0x0F
+    case evt .&. 0xF0 of  -- TODO: bad
+      0x80 => pure $ MkChMsg ch $ NoteOff    !(anySingle) !(anySingle)
+      0x90 => pure $ MkChMsg ch $ NoteOn     !(anySingle) !(anySingle)
+      0xA0 => pure $ MkChMsg ch $ Aftertouch !(anySingle) !(anySingle)
+      0xB0 => pure $ MkChMsg ch $ !(chMode <|> ctrlChange)
+      0xC0 => pure $ MkChMsg ch $ ProgChange !(anySingle)
+      0xD0 => pure $ MkChMsg ch $ ChPressure !(anySingle)
+      0xE0 => pure $ MkChMsg ch $ PitchBend  !(anySingle)
+      _ => fail "invalid MIDI event code \{show evt}"
 
   ||| Parses an event
   event : Parser Event
   event = do
-    eType <- getVal
+    eType <- anySingle
     case eType of
       0xF0 => pure $ SysExEvt !sysEx
       0xFF => pure $ MetaEvt !metaEvent
-      e    => fail "unexpected event type: \{show e}"
+      e    => pure $ MidiEvt !(midiEvent e)
 
   ||| Parses an event at a timecode in a track.
   trackEvent : Parser TrkEvent
