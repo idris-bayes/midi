@@ -15,6 +15,10 @@ import System.File
 
 --%default total
 
+||| We parse MIDI files as vectors of integers
+Parser : Type -> Type
+Parser = Parser.Parser Int
+
 MidiFile : Type
 MidiFile = List Chunk
 
