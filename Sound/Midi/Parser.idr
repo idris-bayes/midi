@@ -96,14 +96,14 @@ mutual
   textME t len = do
     str <- getString $ cast len
     case t of
-      0x01 => pure $ TextEvent str
-      0x02 => pure $ Copyright str
-      0x03 => pure $ SequenceName $ str
+      0x01 => pure $ TextEvent      str
+      0x02 => pure $ Copyright      str
+      0x03 => pure $ SequenceName   str
       0x04 => pure $ InstrumentName str
-      0x05 => pure $ Lyric str
-      0x06 => pure $ Marker str
-      0x07 => pure $ CuePoint str
-      e     => fail $ "Invalid text Meta Event type: " ++ show e
+      0x05 => pure $ Lyric          str
+      0x06 => pure $ Marker         str
+      0x07 => pure $ CuePoint       str
+      e     => fail $ "Invalid text Meta Event type: \{show e}"
 
   ||| Parses a MIDI Meta Event.
   metaEvent : Parser ME
@@ -114,35 +114,46 @@ mutual
       case (meType, meLen) of
         (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !anySingle
         (0x2F, 0x00) => pure EndOfTrack
-        (0x51, 0x03) => pure $ SetTempo !(parseInt 3)
+        (0x51, 0x03) => [| SetTempo $ parseInt 3 |]
         (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
-        (0x58, 0x04) => pure $ TimeSig !(anySingle) (cast $ pow 2 $ cast!(anySingle)) !(anySingle) !(anySingle)
-        (0x59, 0x02) => pure $ KeySig !(anySingle) $ !(anySingle) > 0
+        (0x58, 0x04) => pure $ TimeSig !anySingle (cast $ pow 2 $ cast !anySingle) !anySingle !anySingle
+        (0x59, 0x02) => pure $ KeySig !anySingle $ !anySingle > 0
         (0x7F, l)    => pure $ SequencerME (Universal 0) []  -- TODO: impl
-        (t,    l)    => fail $ "Invalid Meta Event type: " ++ show t ++ " with length " ++ show l
+        (t,    l)    => fail $ "Invalid Meta Event type: \{show t} with length \{show l}"
 
   ||| Parses a MIDI reserved control change message.
   chMode : Parser ChVoice
   chMode = do
     c <- anySingle
     v <- anySingle
-    case c of
+    map ChMode $ case c of
+      0x78 => pure AllSoundOff
+      0x79 => [| ResetAllCtrlrs anySingle |]
+      0x7A => case !anySingle of
+        0x00 => pure $ LocalCtrl False
+        0x7F => pure $ LocalCtrl True
+        e    => fail "invalid LocalControl value \{show e}"
+      0x7B => pure AllNotesOff
+      0x7C => pure OmniOff
+      0x7D => pure OmniOn
+      0x7E => [| MonoOn anySingle |]
+      0x7F => pure PolyOn
       _ => fail "unimplemented chMode"
 
   ||| Parses a generic control change message.
   ctrlChange : Parser ChVoice
-  ctrlChange = pure $ CtrlChange (cast !(anySingle)) (cast !(anySingle))
+  ctrlChange = pure $ CtrlChange (cast !anySingle) (cast !anySingle)
 
   chVoice : Int -> Parser ChVoice
   chVoice e = do
     case e .&. 0xF0 of
-      0x80 => pure $ NoteOff    !(anySingle) !(anySingle)
-      0x90 => pure $ NoteOn     !(anySingle) !(anySingle)
-      0xA0 => pure $ Aftertouch !(anySingle) !(anySingle)
-      0xB0 => pure $ !(chMode <|> ctrlChange)
-      0xC0 => pure $ ProgChange !(anySingle)
-      0xD0 => pure $ ChPressure !(anySingle)
-      0xE0 => pure $ PitchBend  !(anySingle)
+      0x80 => [| NoteOff    anySingle anySingle |]
+      0x90 => [| NoteOn     anySingle anySingle |]
+      0xA0 => [| Aftertouch anySingle anySingle |]
+      0xB0 => chMode <|> ctrlChange
+      0xC0 => [| ProgChange anySingle |]
+      0xD0 => [| ChPressure anySingle |]
+      0xE0 => [| PitchBend  anySingle |]
       x    => fail "invalid channel voice command \{show e}"
 
   ||| Parses general MIDI events (such as notes).
@@ -161,12 +172,10 @@ mutual
 
   ||| Parses an event
   event : Parser Event
-  event = do
-    eType <- anySingle
-    case eType of
-      0xF0 => pure $ SysExEvt !sysEx
-      0xFF => pure $ MetaEvt !metaEvent
-      e    => pure $ MidiEvt !(midiEvent e)
+  event = case !anySingle of
+      0xF0 => [| SysExEvt  sysEx |]
+      0xFF => [| MetaEvt   metaEvent |]
+      e    => [| MidiEvt $ midiEvent e |]
 
   ||| Parses an event at a timecode in a track.
   trackEvent : Parser TrkEvent
