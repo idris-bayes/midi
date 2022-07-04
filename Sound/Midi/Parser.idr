@@ -192,8 +192,14 @@ mutual
   track = do
     skip $ string "MTrk"
     len <- parseInt 4
+
+    start <- getPos
     es <- some trackEvent  -- TODO: precalculate number of events to take?
-    pure $ Track len es
+    end <- getPos
+
+    if minus end start /= cast len
+       then fail "expected track of \{show len} bytes, but read \{show $ minus end start}"
+       else pure $ Track len es
 
   ||| Parses a full MIDI file.
   file : Parser MidiFile
