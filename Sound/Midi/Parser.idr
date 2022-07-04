@@ -111,7 +111,7 @@ mutual
   metaEvent : Parser ME
   metaEvent = do
     meType <- anySingle
-    meLen  <- anySingle
+    meLen  <- parseVLE
     if (meType .&. 0xF0) == 0 then textME meType meLen else
       case (meType, meLen) of
         (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !anySingle
