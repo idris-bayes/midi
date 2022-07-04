@@ -304,7 +304,7 @@ Show Event where
 
 public export
 Show TrkEvent where
-  show (TE dt e) = "\n\{show dt}: \{show e}"
+  show (TE dt e) = "\n\{show dt}:\n\t\{show e}"
 
 public export
 Show Chunk where
