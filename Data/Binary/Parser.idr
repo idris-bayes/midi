@@ -87,6 +87,18 @@ export
 parse : {n : Nat} -> (Eq i, Show i) => Parser i a -> Vect n i -> Either String (a, Nat)
 parse p is = runIdentity $ parseT p is
 
+||| Gets the current input position. Useful for debugging.
+export
+getPos : Applicative m => ParseT i m Nat
+getPos = P $ \s => pure $ OK (s.pos) s
+
+||| Updates the position with a supplied updater function.
+export
+updatePos : Applicative m => (Nat -> Nat) -> ParseT i m ()
+updatePos f = P $ \(S m inp p) => pure $ case f p > m || f p < 0 of
+  True  => Fail p "tried to update position outside of input!"
+  False => OK () $ S m inp (f p)
+
 ||| Combinator that replaces the error message on failure.
 ||| This allows combinators to output relevant errors
 export
