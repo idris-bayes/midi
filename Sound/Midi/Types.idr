@@ -186,10 +186,16 @@ data ME = ||| Specifies the "number" of a sequence. If omitted, this is set to
         | ||| Specifies an event in a film or stage show at the equivalent point
           ||| in the score, e.g. "curtain opens".
           CuePoint String
+        | ||| Specifies the name of the patch/program for the track
+          ProgramName String
+        | ||| Specifies the name of the device/port used for the track
+          DeviceName String
         | ||| Sends all following SysEx and meta events to the given channel,
           ||| until a MidiEvt is received with channel info or another Channel
           ||| Prefix is sent.
           ChannelPrefix Channel
+        | ||| Indicates which MIDI port is to be used for the track.
+          MidiPort Value
         | ||| Specifies the end of the track.
           EndOfTrack
         | ||| Indicates a tempo change, in microseconds per MIDI quarter note.
@@ -246,14 +252,19 @@ mkKeySig a m = index idx keySigAccs  -- TODO: handle minor scales
 public export
 Show ME where
   show (SequenceNr i)       = "Sequence Number: (\{show i}) "
-  show (TextEvent str)      = "Text Event: \{str}"
-  show (Copyright str)      = "Copyright: \{str}"
-  show (SequenceName str)   = "Sequence/Track name: \{str}"
+
+  show (TextEvent      str) = "Text Event: \{str}"
+  show (Copyright      str) = "Copyright: \{str}"
+  show (SequenceName   str) = "Sequence/Track name: \{str}"
   show (InstrumentName str) = "Instrument name: \{str}"
-  show (Lyric str)          = "Lyric: \{str}"
-  show (Marker str)         = "Marker: \{str}"
-  show (CuePoint str)       = "Cue Point: \{str}"
+  show (Lyric          str) = "Lyric: \{str}"
+  show (Marker         str) = "Marker: \{str}"
+  show (CuePoint       str) = "Cue Point: \{str}"
+  show (ProgramName    str) = "Program Name: \{str}"
+  show (DeviceName     str) = "Device Name: \{str}"
+
   show (ChannelPrefix x)    = "Channel Prefix: \{show x}"
+  show (MidiPort p)         = "Midi Port: \{show p}"
   show EndOfTrack           = "End of track."
   show (SetTempo i)         = "Set Tempo: \{show i}"
   show (SMPTEOffset x)      = "SMPTE Offset: " ++ ?x_unimpl

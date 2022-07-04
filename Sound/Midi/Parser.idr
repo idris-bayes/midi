@@ -103,7 +103,9 @@ mutual
       0x05 => pure $ Lyric          str
       0x06 => pure $ Marker         str
       0x07 => pure $ CuePoint       str
-      e     => fail $ "Invalid text Meta Event type: \{show e}"
+      0x08 => pure $ ProgramName    str
+      0x09 => pure $ DeviceName     str
+      e    => fail $ "Invalid text Meta Event type: \{show e}"
 
   ||| Parses a MIDI Meta Event.
   metaEvent : Parser ME
@@ -113,6 +115,7 @@ mutual
     if (meType .&. 0xF0) == 0 then textME meType meLen else
       case (meType, meLen) of
         (0x20, 0x01) => pure $ ChannelPrefix $ restrict 15 $ cast !anySingle
+        (0x21, 0x01) => [| MidiPort anySingle |]
         (0x2F, 0x00) => pure EndOfTrack
         (0x51, 0x03) => [| SetTempo $ parseInt 3 |]
         (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
