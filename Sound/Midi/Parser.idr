@@ -128,36 +128,41 @@ mutual
   chMode : Parser ChVoice
   chMode = do
     c <- anySingle
-    v <- anySingle
+    v <- anySingle  -- even if not used, this must always be present
     map ChMode $ case c of
       0x78 => pure AllSoundOff
-      0x79 => [| ResetAllCtrlrs anySingle |]
-      0x7A => case !anySingle of
+      0x79 => pure $ ResetAllCtrlrs v
+      0x7A => case v of
         0x00 => pure $ LocalCtrl False
         0x7F => pure $ LocalCtrl True
         e    => fail "invalid LocalControl value \{show e}"
       0x7B => pure AllNotesOff
       0x7C => pure OmniOff
       0x7D => pure OmniOn
-      0x7E => [| MonoOn anySingle |]
+      0x7E => pure $ MonoOn v
       0x7F => pure PolyOn
-      _ => fail "unimplemented chMode"
+      e => fail "unimplemented chMode \{show e}"
 
   ||| Parses a generic control change message.
   ctrlChange : Parser ChVoice
-  ctrlChange = pure $ CtrlChange (cast !anySingle) (cast !anySingle)
+  ctrlChange = [| CtrlChange anySingle anySingle |]
 
   chVoice : Int -> Parser ChVoice
   chVoice e = do
     case e .&. 0xF0 of
       0x80 => [| NoteOff    anySingle anySingle |]
-      0x90 => [| NoteOn     anySingle anySingle |]
+      0x90 => do
+        n <- anySingle
+        v <- anySingle
+        pure $ case v /= 0 of
+          True  => NoteOn  n v
+          False => NoteOff n v
       0xA0 => [| Aftertouch anySingle anySingle |]
       0xB0 => chMode <|> ctrlChange
       0xC0 => [| ProgChange anySingle |]
       0xD0 => [| ChPressure anySingle |]
       0xE0 => [| PitchBend  anySingle |]
-      x    => fail "invalid channel voice command \{show e}"
+      _    => fail "invalid channel voice command \{show e}"
 
   ||| Parses general MIDI events (such as notes).
   midiEvent : Int -> Parser ChMsg
@@ -166,11 +171,11 @@ mutual
 
     v <- case !(optional $ chVoice e) of
       Just v  => lift (put e) >> pure v
-      Nothing => chVoice rs
+      Nothing => updatePos (`minus` 1) >> chVoice rs
 
-    e' <- lift get
+    status <- lift get
 
-    let ch = restrict 15 $ cast $ e' .&. 0x0F  -- TODO: calculate from v|rs properly
+    let ch = restrict 15 $ cast $ status .&. 0x0F  -- TODO: calculate from v|rs properly
     pure $ MkChMsg ch v
 
   ||| Parses an event
