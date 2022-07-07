@@ -118,8 +118,8 @@ mutual
         (0x21, 0x01) => [| MidiPort anySingle |]
         (0x2F, 0x00) => pure EndOfTrack
         (0x51, 0x03) => [| SetTempo $ parseInt 3 |]
-        (0x54, 0x05) => pure $ SMPTEOffset ?parse_smpte
-        (0x58, 0x04) => pure $ TimeSig !anySingle (cast $ pow 2 $ cast !anySingle) !anySingle !anySingle
+        (0x54, 0x05) => [| SMPTEOffset ?parse_smpte |]
+        (0x58, 0x04) => [| TimeSig anySingle anySingle anySingle anySingle |]
         (0x59, 0x02) => pure $ KeySig !anySingle $ !anySingle > 0
         (0x7F, l)    => pure $ SequencerME (Universal 0) []  -- TODO: impl
         (t,    l)    => fail $ "Invalid Meta Event type: \{show t} with length \{show l}"
