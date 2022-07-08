@@ -153,7 +153,7 @@ mutual
         v <- anySingle
         pure $ case v /= 0 of
           True  => NoteOn  n v
-          False => NoteOff n v
+          False => NoteOff n 64  -- standard to send 64
       0xA0 => [| Aftertouch anySingle anySingle |]
       0xB0 => chMode <|> ctrlChange
       0xC0 => [| ProgChange anySingle |]
