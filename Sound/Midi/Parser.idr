@@ -19,9 +19,6 @@ import Control.Monad.State
 Parser : Type -> Type
 Parser = Parser.ParseT Int (State Int)
 
-MidiFile : Type
-MidiFile = List Chunk
-
 ||| Get `n` characters from the input and parses as a string.
 getString : (n : Nat) -> Parser String
 getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
