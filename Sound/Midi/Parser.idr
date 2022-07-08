@@ -13,6 +13,7 @@ import Sound.Midi.Types
 import Data.Buffer
 import System.File
 import Control.Monad.State
+import Sound.Midi.Serialise
 
 ||| We parse MIDI files as vectors of integers. State is needed for running
 ||| status codes.
@@ -210,12 +211,12 @@ mutual
     trks <- some track
     pure $ hdr :: trks
 
-
-parseFile : String -> IO ()
+public export
+parseFile : String -> IO MidiFile
 parseFile filename = do
   bufE <- createBufferFromFile filename
   case bufE of
-    Left e => print e
+    Left e => ?print_e
     Right buf => do
       size <- rawSize buf
 
@@ -224,6 +225,19 @@ parseFile filename = do
 
       let v = fromList l
       case snd $ runIdentity $ runStateT 0 $ parseT file v of
-        Left e => putStrLn e
+        Left e => ?putStrLn_e
         Right (v,l) => --print "Read " ++ show l ++ printLn " bytes of input:" ++ printLn v
-          printLn v
+          --printLn v
+          pure v
+
+test : IO ()
+test = do
+  f  <- parseFile "the lick.mid"
+  let is = serialise f
+  printLn is
+  case snd $ runIdentity $ runStateT 0 $ parseT file $ fromList is of
+    Left e => putStrLn $ "is errrrr: " ++ e
+    Right (v, l) => do
+      let is' = serialise v
+      printLn is'
+      printLn $ is == is'
