@@ -1,3 +1,7 @@
 package midi
 
 depends = contrib
+
+modules = Sound.Midi.Types
+        , Sound.Midi.Parser
+        , Sound.Midi.Serialise
