@@ -236,6 +236,14 @@ data Chunk = ||| MIDI header chunk. Included
              Header Int (Fin 3) Int Int
            | Track Int (List TrkEvent)  -- TODO: List1
 
+||| Representation of a MIDI file.
+public export
+MidiFile : Type
+MidiFile = List Chunk
+
+
+--- SHOW INSTANCES
+
 ||| Maps an amount of accidentals to a human-readable key signature notation.
 keySigAccs : Vect ? String
 keySigAccs = ["F#/Gb", "Db", "Ab", "Eb", "Bb", "F",
