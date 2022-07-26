@@ -1,4 +1,9 @@
 package midi
+version   = 0.1.0
+authors   = "Jacob Walters"
+license   = "The BSD 3-Clause License"
+sourceloc = "www.github.com/idris-bayes/midi"
+brief     = "A pure Idris2 MIDI library for interfacing with MIDI files."
 
 depends = contrib
 
