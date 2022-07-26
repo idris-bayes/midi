@@ -81,8 +81,8 @@ serChMode PolyOn             = [127, 0x00]
 
 ||| Serialise a MIDI Channel Voice event.
 serMidiEvent : ChVoice -> List1 Int
-serMidiEvent (NoteOff    n v) = 0x80 ::: [n, v]
-serMidiEvent (NoteOn     n v) = 0x90 ::: [n, v]
+serMidiEvent (NoteOff    p v) = 0x80 ::: [p, v]
+serMidiEvent (NoteOn     p v) = 0x90 ::: [p, v]
 serMidiEvent (Aftertouch n v) = 0xA0 ::: [n, v]
 serMidiEvent (CtrlChange c v) = 0xB0 ::: [c, v]
 serMidiEvent (ChMode x) = 0xB0 ::: serChMode x

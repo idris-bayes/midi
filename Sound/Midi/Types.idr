@@ -13,10 +13,10 @@ public export
 Channel : Type
 Channel = Fin 16
 -- TODO: Change all of these to be bounded properly
-||| Specifies a note value.
+||| Specifies a MIDI note value. 60 is middle C.
 public export
-Note : Type
-Note = Int  -- 0 to 127
+Pitch : Type
+Pitch = Int  -- 0 to 127
 
 ||| Specifies a general value in [0, 127].
 public export
@@ -74,12 +74,12 @@ data ChModeMsg = ||| Instructs all oscillators to turn off immediately, setting
 
 ||| Channel Voice messages.
 public export
-data ChVoice = NoteOff Note Value
-             | NoteOn  Note Value
+data ChVoice = NoteOff Pitch Value
+             | NoteOn  Pitch Value
              | ||| Polyphonic Aftertouch. Sets a "pressure" value for a given
                ||| note. This is often sent by pressing down harder on a key
                ||| after it "bottoms out".
-               Aftertouch Note Value
+               Aftertouch Pitch Value
              | ||| Control Change (CC). Sent when a controller changes (e.g. mod
                ||| wheel, foot pedal, etc.). Value may range up to 119, values
                ||| 120-127 are handled in ChMode.
@@ -295,8 +295,8 @@ Show ChModeMsg where
 
 public export
 Show ChVoice where
-  show (NoteOff n v)    = "Note Off: \{show n}, \{show v}"
-  show (NoteOn n v)     = "Note On: \{show n}, \{show v}"
+  show (NoteOff p v)    = "Note Off: \{show p}, \{show v}"
+  show (NoteOn p v)     = "Note On: \{show p}, \{show v}"
   show (Aftertouch n v) = "Aftertouch: \{show n}, \{show v}"
   show (CtrlChange c v) = "Control Change: Controller \{show c}, \{show v}"
   show (ChMode x)       = "Channel Mode: \{show x}"
