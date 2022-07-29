@@ -103,14 +103,14 @@ serTrkEvent (TE dt e) = intToVLQ dt ++ serEvent e
 
 ||| Serialise a MIDI chunk, be it a header or a track.
 serChunk : Chunk -> List Int
-serChunk (Header l f t c) = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 0x06]  -- Magic bytes
+serChunk (Header _ f t c) = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 0x06]  -- Magic bytes
                          ++ [0, cast $ finToNat f]  -- Format code
                          ++ serInt 2 t
                          ++ serInt 2 c
-serChunk (Track l es)     = let l = join $ map serTrkEvent es in
+serChunk (Track _ es)     = let es' = join $ map serTrkEvent es in
                             [0x4d, 0x54, 0x72, 0x6b]  -- Magic bytes
-                         ++ serLen (cast $ length l)
-                         ++ l
+                         ++ serLen (cast $ length es')
+                         ++ es'
 
 ||| Serialise a MIDI file representation.
 export
