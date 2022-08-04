@@ -20,6 +20,10 @@ import Sound.Midi.Serialise
 Parser : Type -> Type
 Parser = Parser.ParseT Int (State Int)
 
+||| Run a parser over some input
+parse : {n : Nat} -> Parser a -> Vect n Int -> Either String a
+parse p v = mapSnd fst . snd . runIdentity . runStateT 0 $ parseT p v
+
 ||| Get `n` characters from the input and parses as a string.
 getString : (n : Nat) -> Parser String
 getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
@@ -30,6 +34,7 @@ getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
 ||| Parses a little-endian n-bit byte.
 parseInt : (n : Nat) -> Parser Int
 parseInt n = (foldl (\a, e => 256 * a + e) 0) <$> take n
+
 
 --- MIDI-specific parsers
 ||| Parses a variable-length encoded value.
@@ -196,13 +201,10 @@ mutual
     skip $ string "MTrk"
     len <- parseInt 4
 
-    start <- getPos
-    es <- some trackEvent  -- TODO: precalculate number of events to take?
-    end <- getPos
-
-    if minus end start /= cast len
-       then fail "expected track of \{show len} bytes, but read \{show $ minus end start}"
-       else pure $ Track es
+    t <- take $ cast len
+    case parse (some trackEvent) t of
+       Left e   => fail e
+       Right ts => pure $ Track ts
 
   ||| Parses a full MIDI file.
   file : Parser MidiFile
@@ -216,7 +218,7 @@ mutual
 ||| This may change to Byte8 in the future.)
 public export
 parseMidi : {n : Nat} -> Vect n Int -> Either String MidiFile
-parseMidi v = mapSnd fst $ snd $ runIdentity $ runStateT 0 $ parseT file v
+parseMidi = parse file
 
 ||| Parses a MIDI file from a filename. Calls idris_crash on error, so use with caution!
 public export
@@ -227,7 +229,8 @@ unsafeParseMidiFile filename = do
   case bufE of
     Left e => idris_crash $ show e
     Right buf => do
-      case parseMidi $ fromList !(bufferData buf) of
+      l <- bufferData buf
+      case parseMidi $ fromList l of
         Left e   => idris_crash $ show e
         Right mf => pure mf
 
