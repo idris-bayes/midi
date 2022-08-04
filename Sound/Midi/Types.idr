@@ -316,7 +316,6 @@ Show TrkEvent where
 
 public export
 Show Chunk where
-  show (Header len fmt tracks ticks) =
-     "MThd (\{show len} bytes): Format \{show (finToNat fmt)}, "
-     ++ "\{show tracks} track(s), \{show ticks} ticks per quarter note"
-  show (Track len es) = "MTrk (\{show len} bytes): \{show es}"
+  show (Header fmt tracks ticks) =
+    "Header: Format \{show (finToNat fmt)}, \{show tracks} track(s), \{show ticks} ticks per quarter note"
+  show (Track es) = "Track: \{show es}"
