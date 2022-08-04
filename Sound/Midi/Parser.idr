@@ -17,14 +17,17 @@ import Sound.Midi.Serialise
 
 ||| We parse MIDI files as vectors of integers. State is needed for running
 ||| status codes.
+export
 Parser : Type -> Type
 Parser = Parser.ParseT Int (State Int)
 
 ||| Run a parser over some input
+export
 parse : {n : Nat} -> Parser a -> Vect n Int -> Either String a
 parse p v = mapSnd fst . snd . runIdentity . runStateT 0 $ parseT p v
 
 ||| Get `n` characters from the input and parses as a string.
+export
 getString : (n : Nat) -> Parser String
 getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
           <?> "couldn't read as string"
@@ -32,12 +35,14 @@ getString n = (pure $ init $ fastPack $ map cast $ toList !(take n))
         init s = strSubstr 0 (cast $ minus (length s) 1) s
 
 ||| Parses a little-endian n-bit byte.
+export
 parseInt : (n : Nat) -> Parser Int
 parseInt n = (foldl (\a, e => 256 * a + e) 0) <$> take n
 
 
 --- MIDI-specific parsers
 ||| Parses a variable-length encoded value.
+export
 parseVLE : Parser Int
 parseVLE = do
   bs <- takeWhile (> 0x7F)
@@ -45,11 +50,13 @@ parseVLE = do
   pure $ bsum * 128 + !(anySingle <?> "couldn't parse VLE")
 
 ||| Parses an SMPTE time code.
+export
 parseSMPTE : Parser SMPTE
 parseSMPTE = ?smpte_parse
 
 mutual
   ||| Parses a MIDI file format number.
+  export
   format : Parser (Fin 3)
   format = do
     fmt <- parseInt 2
@@ -58,6 +65,7 @@ mutual
       Just fin => pure fin
 
   ||| Parses a MIDI file header.
+  export
   header : Parser Chunk
   header = do
     skip $ string "MThd" <?> "couldn't find MIDI header magic bytes"
@@ -72,11 +80,13 @@ mutual
         pure $ Header fmt tracks ticks
 
   ||| Parses a manufacturer ID.
+  export
   manufacturer : Parser Manufacturer
   manufacturer = do
     ?manu
 
   ||| Parses a System Exclusive message.
+  export
   sysEx : Parser SystemExclusive
   sysEx = do
     --m <- manufacturer
@@ -91,10 +101,12 @@ mutual
   ||| if l == 0x00 then use default values
   ||| if l == 0x02 then parse and use supplied value
   ||| otherwise, fail
+  export
   sequenceNrME : Int -> Parser ME
   sequenceNrME l = ?snme
 
   ||| Parses a text-based Meta Event
+  export
   textME : Int -> Int -> Parser ME
   textME t len = do
     str <- getString $ cast len
@@ -111,6 +123,7 @@ mutual
       e    => fail $ "Invalid text Meta Event type: \{show e}"
 
   ||| Parses a MIDI Meta Event.
+  export
   metaEvent : Parser ME
   metaEvent = do
     meType <- anySingle
@@ -128,6 +141,7 @@ mutual
         (t,    l)    => fail $ "Invalid Meta Event type: \{show t} with length \{show l}"
 
   ||| Parses a MIDI reserved control change message.
+  export
   chMode : Parser ChVoice
   chMode = do
     c <- anySingle
@@ -147,9 +161,11 @@ mutual
       e => fail "unimplemented chMode \{show e}"
 
   ||| Parses a generic control change message.
+  export
   ctrlChange : Parser ChVoice
   ctrlChange = [| CtrlChange anySingle anySingle |]
 
+  export
   chVoice : Int -> Parser ChVoice
   chVoice e = do
     case e .&. 0xF0 of
@@ -168,6 +184,7 @@ mutual
       _    => fail "invalid channel voice command \{show e}"
 
   ||| Parses general MIDI events (such as notes).
+  export
   midiEvent : Int -> Parser ChMsg
   midiEvent e = do
     rs <- lift get
@@ -182,6 +199,7 @@ mutual
     pure $ MkChMsg ch v
 
   ||| Parses an event
+  export
   event : Parser Event
   event = case !anySingle of
       0xF0 => [| SysExEvt  sysEx |]
@@ -189,6 +207,7 @@ mutual
       e    => [| MidiEvt $ midiEvent e |]
 
   ||| Parses an event at a timecode in a track.
+  export
   trackEvent : Parser TrkEvent
   trackEvent = do
     dt <- parseVLE <?> "couldn't parse timecode"
@@ -196,6 +215,7 @@ mutual
     pure $ TE dt e
 
   ||| Parses a track chunk.
+  export
   track : Parser Chunk
   track = do
     skip $ string "MTrk"
@@ -207,6 +227,7 @@ mutual
        Right ts => pure $ Track ts
 
   ||| Parses a full MIDI file.
+  export
   file : Parser MidiFile
   file = do
     hdr <- header
@@ -216,12 +237,12 @@ mutual
 ||| Parses a Vector of bytes as MIDI data.
 ||| (We're using Ints instead of bytes since that's what Data.Buffer uses.
 ||| This may change to Byte8 in the future.)
-public export
+export
 parseMidi : {n : Nat} -> Vect n Int -> Either String MidiFile
 parseMidi = parse file
 
 ||| Parses a MIDI file from a filename. Calls idris_crash on error, so use with caution!
-public export
+export
 partial
 unsafeParseMidiFile : String -> IO MidiFile
 unsafeParseMidiFile filename = do
@@ -235,7 +256,7 @@ unsafeParseMidiFile filename = do
         Right mf => pure mf
 
 ||| Reads a file from a filename and parses it as MIDI data.
-public export
+export
 parseMidiFile : String -> IO (Either String MidiFile)
 parseMidiFile filename = do
   bufE <- createBufferFromFile filename

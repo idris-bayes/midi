@@ -11,6 +11,7 @@ import Sound.Midi.Types
 --- HELPERS
 
 ||| Convert an integer into a little-endian encoded List of ints.
+export
 intToLE : Int -> List Int
 intToLE = go []
   where go : List Int -> Int -> List Int
@@ -19,6 +20,7 @@ intToLE = go []
                     else n :: l
 
 ||| Convert an integer into a variable length quantity.
+export
 intToVLQ : Int -> List Int
 intToVLQ n = if n < 128 then [n] else go [n `mod` 128] $ n `div` 128
   where go : List Int -> Int -> List Int
@@ -34,20 +36,25 @@ padList n l = case length l `compare` n of
   GT => ?padList_too_large
 
 ||| Serialise an int with a given padding length.
+export
 serInt : Nat -> Int -> List Int
 serInt l = padList l . intToLE
 
 ||| Serialise a length value.
+export
 serLen : Int -> List Int
 serLen = serInt 4
 
+||| Serialise a string, by adding length and trailing null byte.
+export
 serString : String -> List Int
-serString s = intToVLQ (cast $ length s + 1) ++ (map cast $ fastUnpack s) ++ [0]
+serString s = intToVLQ (cast $ length s + 1) ++ (map cast $ fastUnpack s) `snoc` 0
 
 
 --- SERIALISATION
 
 ||| Serialise a Meta Event.
+export
 serMetaEvent : ME -> List Int
 serMetaEvent (SequenceNr n) = ?unimpl_serMetaEvent_sequencerNr
 serMetaEvent (TextEvent      s) = 0x01 :: serString s
@@ -69,6 +76,7 @@ serMetaEvent (KeySig a m) = [0x59, 0x02, a, if m then 1 else 0]
 serMetaEvent (SequencerME l xs) = ?unimpl_serMetaEvent_SequencerME
 
 ||| Serialise a MIDI Channel Mode event
+export
 serChMode : ChModeMsg -> List Int
 serChMode AllSoundOff        = [120, 0x00]
 serChMode (ResetAllCtrlrs x) = [121, x]
@@ -80,6 +88,7 @@ serChMode (MonoOn x)         = [126, x]
 serChMode PolyOn             = [127, 0x00]
 
 ||| Serialise a MIDI Channel Voice event.
+export
 serMidiEvent : ChVoice -> List1 Int
 serMidiEvent (NoteOff    p v) = 0x80 ::: [p, v]
 serMidiEvent (NoteOn     p v) = 0x90 ::: [p, v]
@@ -91,6 +100,7 @@ serMidiEvent (ChPressure p)   = 0xD0 ::: [p]
 serMidiEvent (PitchBend b)    = 0xE0 ::: [b]
 
 ||| Serialise a MIDI event.
+export
 serEvent : Event -> List Int
 serEvent (MetaEvt e) = 0xFF :: serMetaEvent e
 serEvent (MidiEvt (MkChMsg c v)) = let (x:::xs) = serMidiEvent v
@@ -98,10 +108,12 @@ serEvent (MidiEvt (MkChMsg c v)) = let (x:::xs) = serMidiEvent v
 serEvent (SysExEvt e) = ?unimpl_serEvent_sysEx
 
 ||| Serialise a track event (event paired with time difference).
+export
 serTrkEvent : TrkEvent -> List Int
 serTrkEvent (TE dt e) = intToVLQ dt ++ serEvent e
 
 ||| Serialise a MIDI chunk, be it a header or a track.
+export
 serChunk : Chunk -> List Int
 serChunk (Header f t c) = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 0x06]  -- Magic bytes
                          ++ [0, cast $ finToNat f]  -- Format code
