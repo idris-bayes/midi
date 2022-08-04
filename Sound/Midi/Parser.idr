@@ -211,28 +211,42 @@ mutual
     trks <- some track
     pure $ hdr :: trks
 
+||| Parses a Vector of bytes as MIDI data.
+||| (We're using Ints instead of bytes since that's what Data.Buffer uses.
+||| This may change to Byte8 in the future.)
 public export
-parseFile : String -> IO MidiFile
-parseFile filename = do
+parseMidi : {n : Nat} -> Vect n Int -> Either String MidiFile
+parseMidi v = mapSnd fst $ snd $ runIdentity $ runStateT 0 $ parseT file v
+
+||| Parses a MIDI file from a filename. Calls idris_crash on error, so use with caution!
+public export
+partial
+unsafeParseMidiFile : String -> IO MidiFile
+unsafeParseMidiFile filename = do
   bufE <- createBufferFromFile filename
   case bufE of
-    Left e => ?print_e
+    Left e => idris_crash $ show e
+    Right buf => do
+      case parseMidi $ fromList !(bufferData buf) of
+        Left e   => idris_crash $ show e
+        Right mf => pure mf
+
+||| Reads a file from a filename and parses it as MIDI data.
+public export
+parseMidiFile : String -> IO (Either String MidiFile)
+parseMidiFile filename = do
+  bufE <- createBufferFromFile filename
+  case bufE of
+    Left e => pure $ Left $ show e
     Right buf => do
       size <- rawSize buf
-
       l <- bufferData buf
-      printLn l
+      pure $ parseMidi $ fromList l
 
-      let v = fromList l
-      case snd $ runIdentity $ runStateT 0 $ parseT file v of
-        Left e => ?putStrLn_e
-        Right (v,l) => --print "Read " ++ show l ++ printLn " bytes of input:" ++ printLn v
-          --printLn v
-          pure v
-
-test : IO ()
-test = do
-  f  <- parseFile "the lick.mid"
+partial
+test : String -> IO ()
+test fn = do
+  f  <- unsafeParseMidiFile fn
   let is = serialise f
   printLn is
   case snd $ runIdentity $ runStateT 0 $ parseT file $ fromList is of
