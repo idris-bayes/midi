@@ -64,7 +64,7 @@ mutual
         fmt <- format
         tracks <- parseInt 2
         ticks  <- parseInt 2
-        pure $ Header len fmt tracks ticks
+        pure $ Header fmt tracks ticks
 
   ||| Parses a manufacturer ID.
   manufacturer : Parser Manufacturer
@@ -202,7 +202,7 @@ mutual
 
     if minus end start /= cast len
        then fail "expected track of \{show len} bytes, but read \{show $ minus end start}"
-       else pure $ Track len es
+       else pure $ Track es
 
   ||| Parses a full MIDI file.
   file : Parser MidiFile

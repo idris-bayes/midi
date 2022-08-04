@@ -233,8 +233,8 @@ data TrkEvent = TE Int Event
 ||| Representation of MIDI chunks.
 public export
 data Chunk = ||| MIDI header chunk. Included
-             Header Int (Fin 3) Int Int
-           | Track Int (List TrkEvent)  -- TODO: List1
+             Header (Fin 3) Int Int
+           | Track (List TrkEvent)  -- TODO: List1
 
 ||| Representation of a MIDI file.
 public export
