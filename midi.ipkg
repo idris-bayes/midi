@@ -6,6 +6,7 @@ sourceloc = "www.github.com/idris-bayes/midi"
 brief     = "A pure Idris2 MIDI library for interfacing with MIDI files."
 
 depends = contrib
+        , parser
 
 modules = Sound.Midi.Types
         , Sound.Midi.Parser

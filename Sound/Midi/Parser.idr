@@ -7,7 +7,7 @@ import Data.List1
 import Data.String
 import Data.Vect
 
-import Data.Binary.Parser
+import Parser
 import Sound.Midi.Types
 
 import Data.Buffer

@@ -1,0 +1,5 @@
+[custom.all.parser]
+type   = "github"
+url    = "https://github.com/idris-bayes/parser"
+commit = "latest:master"
+ipkg   = "parser.ipkg"
